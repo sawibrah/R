@@ -1,0 +1,52 @@
+---
+title: "Predict astronauts' mission duration with tidymodes and bootstrap aggregation"
+author: "Ibrahim Sawadogo & Julia Silge"
+date: "7/07/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(cache = TRUE,
+                      warning = FALSE,
+                      message = FALSE,
+                      echo = T,
+                      dpi = 180,
+                      fig.width = 8, 
+                      fig.height = 5)
+
+library(tidyverse)
+```
+
+Let's build a model for the [ the mission of astronauts](https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-07-14/readme.md). Let's understand more about the **duration** of astronauts' missions, how it has changed over time, and what affects it.
+
+## Explore data
+
+```{r}
+astronauts <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-07-14/astronauts.csv')
+
+```
+
+
+```{r}
+astronauts %>% 
+  mutate(year_of_mission = 10*(year_of_mission %/% 10), # making it into decades
+         year_of_mission = factor(year_of_mission)) %>% 
+  ggplot(aes(year_of_mission, hours_mission, 
+             fill=year_of_mission, color=year_of_mission)) +
+  geom_boxplot(show.legend = F, alpha=0.2, size=1.5) +
+  scale_y_log10() +
+  labs(x = NULL, y = "Duration of mission in hours")
+  
+```
+
+
+## Build a model
+
+
+
+
+## Evaluate modeling
+
+
+

@@ -1,0 +1,109 @@
+---
+title: "Caribou Location Tracking"
+author: "David Robinson and Ibrahim Sawadogo"
+date: "6/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+#library(tidytuesdayR)
+library(lubridate)
+library(scales)
+theme_set(theme_light())
+
+tuesdata <- tidytuesdayR::tt_load('2020-06-23')
+tuesdata <- tidytuesdayR::tt_load(2020, week = 26)
+```
+
+```{r}
+individuals <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-06-23/individuals.csv')
+locations <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-06-23/locations.csv')
+```
+
+## Exploring the `individuals` dataset
+
+```{r}
+individuals %>%
+  View()
+# from this we notice a lot of missing data. Let's explore it more by checking the percentage of missing data are not missing
+individuals %>%
+  summarize(across(sex:study_site, list(~ mean(!is.na(.)))))
+
+individuals %>%
+  count(pregnant)
+
+individuals %>%
+  count(life_stage)
+
+individuals %>%
+  count(with_calf)
+
+individuals %>%
+  count(death_cause)
+```
+```{r}
+individuals %>%
+  filter(deploy_on_latitude > 40) %>%
+  count(study_site, deploy_on_longitude, deploy_on_latitude,  sort = T) %>%
+  ggplot(aes(deploy_on_longitude, deploy_on_latitude, size = n, color=study_site)) +
+  borders("world", regions="canada") +
+  geom_point()+
+  scale_size_continuous(guide = F) +
+  ggthemes::theme_map()
+```
+
+## Looking at locations
+
+```{r}
+locations %>%
+  ggplot(aes(longitude, latitude, color = study_site)) +
+  geom_point()
+```
+```{r}
+by_animal <- locations %>%
+  group_by(animal_id, study_site) %>%
+  summarize(start = min(timestamp), end = max(timestamp), num_points = n()) %>%
+  ungroup() %>%
+  arrange(desc(num_points))
+```
+```{r}
+library(lubridate)
+
+example_animal <- locations %>%
+  arrange(timestamp) %>%
+  filter(animal_id == sample(unique(animal_id), 1))
+
+example_animal %>%
+  mutate(quarter = as.Date(floor_date(timestamp, "quarter"))) %>%
+  ggplot(aes(longitude, latitude, color = timestamp)) +
+  geom_point(alpha = .5) +
+  geom_path(alpha=.5) +
+  facet_wrap(~ quarter) +
+  labs(title = "One caribu over time")
+```
+
+```{r}
+library(geosphere)
+
+locations_with_gaps <- locations %>%
+  group_by(animal_id) %>%
+  mutate(last_lon = lag(longitude), last_lat = lag(latitude),
+         hours = as.numeric(difftime(timestamp, lag(timestamp), unit = "hours")),
+         km = distHaversine(cbind(longitude, latitude), cbind(last_lon, last_lat))/1000,
+         kph = km/hours) %>%
+  ungroup()
+
+locations_with_gaps %>%
+  filter(hours <= 8) %>%
+  ggplot(aes(kph)) +
+  geom_histogram() +
+  #scale_x_log10(labels==scales,comma) +
+  labs(title = "One average ")
+```
+
+

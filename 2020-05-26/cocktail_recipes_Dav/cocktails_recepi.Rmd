@@ -1,0 +1,23 @@
+---
+title: "Cocktails Recepi"
+author: "David Robinson and Ibrahim Sawadogo"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#   devtools::install_github("thebioengineer/tidytuesdayR")
+library(tidyverse)
+library(lubridate)
+library(scales)
+theme_set(theme_light())
+
+tuesdata <- tidytuesdayR::tt_load('2020-05-19')
+
+vb_matches <- tuesdata$vb_matches %>% 
+  mutate(match_id = row_number())
+```

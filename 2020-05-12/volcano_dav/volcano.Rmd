@@ -1,0 +1,288 @@
+---
+title: "Volcano eruption"
+author: "David Robinson and Sawibrah"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+theme_set(theme_light())
+```
+
+```{r}
+tuesdata <- tidytuesdayR::tt_load('2020-05-12')
+```
+
+```{r}
+volcano <- tuesdata$volcano %>% 
+  mutate(last_eruption_year = as.numeric(last_eruption_year))
+# View(volcano)
+```
+
+```{r}
+volcano %>% 
+  count(evidence_category, sort = TRUE)
+
+volcano %>% 
+  #mutate(last_eruption_year = as.numeric(last_eruption_year)) %>%
+  ggplot(aes(last_eruption_year, fill = evidence_category)) +
+  geom_histogram()
+  
+volcano %>% 
+  mutate(years_ago = 2020 - last_eruption_year) %>%
+  ggplot(aes(years_ago +1, fill = evidence_category)) +
+  geom_histogram() +
+  scale_x_log10()
+```
+
+```{r}
+# here was a parenthesis
+volcano %>% 
+  filter(evidence_category == "Eruption Observed") %>% 
+  arrange(last_eruption_year) %>% 
+  select(last_eruption_year, volcano_name, country)#%>% View()
+```
+
+```{r}
+# here was a parenthesis
+eruptions <- tuesdata$eruptions
+
+eruptions %>% 
+  mutate(years_ago = 2020 - start_year) %>%
+  ggplot(aes(years_ago +1, fill = eruption_category)) +
+  geom_histogram() +
+  scale_x_log10()
+
+```
+
+```{r}
+volcano %>% count(region, sort=TRUE)
+
+volcano %>% count(primary_volcano_type, sort = TRUE)
+```
+
+```{r}
+library(ggthemes)
+volcano %>%
+  ggplot(aes(longitude, latitude)) +
+  geom_point() +
+  borders() +
+  theme_map()
+```
+```{r}
+volcano %>%
+  mutate(primary_volcano_type = fct_lump(primary_volcano_type, 8)) %>%
+  ggplot(aes(longitude, latitude)) +
+  borders() +
+  geom_point(aes(color = primary_volcano_type)) +
+  theme_map()
+```
+
+```{r}
+# here we remove the plurals in the categories in the previous plot, change the total category to 6, set the size of the point, labelled the graph
+volcano %>%
+  mutate(primary_volcano_type = str_remove(primary_volcano_type, "\\(.*\\)"),
+         primary_volcano_type = fct_lump(primary_volcano_type, 6)) %>%
+  ggplot(aes(longitude, latitude)) +
+  borders() +
+  geom_point(aes(color = primary_volcano_type), size = .5) +
+  theme_map() +
+  labs(title = "Volcanoes of the World", color = "Type")
+```
+
+```{r}
+library(leaflet) # To make the above graph interactive
+
+leaflet(volcano) %>% 
+  addTiles() %>% 
+  addCircles(lat = ~latitude, lng = ~longitude) 
+```
+
+```{r}
+leaflet(volcano) %>% 
+  addTiles() %>% 
+  addCircleMarkers(lat = ~ latitude, 
+                   lng = ~ longitude,
+                   popup = ~ volcano_name)
+```
+
+
+```{r}
+library(glue)
+
+template <- "<p>{ volcano_name }</p><p>{ primary_volcano_type }</p>"
+volcano_html <- volcano %>% 
+  select(volcano_name, latitude, longitude, primary_volcano_type, region) %>%
+  mutate(html = glue(template),
+         primary_volcano_type = str_remove(primary_volcano_type, "\\(.*\\)"))
+
+volcano_html %>% 
+  filter(region == "South America") %>%
+  leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(lat = ~ latitude, 
+                   lng = ~ longitude,
+                   popup = ~ html) 
+
+```
+
+```{r}
+library(DT)
+template <- "<p>{ volcano_name }</p><p>{ primary_volcano_type }</p>"
+#volcano_html <- volcano %>% 
+volcano %>% 
+  filter(region == "South America") %>%
+  gather(key, value, volcano_name, primary_volcano_type, last_eruption_year) %>%
+  nest(data = c(key, value)) %>%
+  mutate(html = map(data, datatable)) %>%
+  pull(html) %>%
+  pluck(1)
+```
+
+```{r}
+library(DT)
+volcano %>% 
+  filter(region == "South America") %>%
+  gather(key, value, volcano_name, primary_volcano_type, last_eruption_year) %>%
+  mutate(key = str_to_title(str_replace_all(key, "_", " "))) %>%
+  nest(data = c(key, value)) %>%
+  mutate(html = map(data, datatable, rownames = FALSE, colnames = c("", ""))) %>%
+  pull(html) %>%
+  pluck(1)
+```
+
+```{r}
+library(DT)
+volcano %>% 
+  filter(region == "South America") %>%
+  mutate(primary_volcano_type = str_remove(primary_volcano_type, "\\(.*\\)")) %>%
+  gather(key, value, volcano_name, primary_volcano_type, last_eruption_year) %>%
+  mutate(key = str_to_title(str_replace_all(key, "_", " ")),
+         key = paste0("<b>", key, "</b>")) %>%
+  replace_na(list(value = "Unknown")) %>%
+  nest(data = c(key, value)) %>%
+  mutate(html = map(data,
+                    knitr::kable, 
+                    format = "html",
+                    escape = FALSE,
+                    col.names = c("",""))) %>%
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lat = ~ latitude, 
+                   lng = ~ longitude,
+                   popup = ~ html) 
+```
+
+```{r}
+volcano %>% 
+  #filter(region == "South America") %>%
+  mutate(primary_volcano_type = str_remove(primary_volcano_type, "\\(.*\\)")) %>%
+  gather(key, value, 
+         volcano_name, 
+         primary_volcano_type, 
+         last_eruption_year,
+         country,
+         tectonic_settings,
+         population_within_5_km) %>%
+  mutate(key = str_to_title(str_replace_all(key, "_", " ")),
+         key = paste0("<b>", key, "</b>")) %>%
+  replace_na(list(value = "Unknown")) %>%
+  nest(data = c(key, value)) %>%
+  mutate(html = map(data,
+                    knitr::kable, 
+                    format = "html",
+                    escape = FALSE,
+                    col.names = c("",""))) %>%
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lat = ~ latitude, 
+                   lng = ~ longitude,
+                   popup = ~ html) %>%
+  addMeasure()
+```
+
+```{r}
+volcano %>% 
+  mutate(primary_volcano_type = str_remove(primary_volcano_type, "\\(.*\\)"),
+         transformed_pop = log2(population_within_5_km + 1),
+         pop_color = colorNumeric(c("blue", "red"), transformed_pop)(transformed_pop)) %>%
+  gather(key, value, 
+         volcano_name, 
+         primary_volcano_type, 
+         last_eruption_year,
+         country,
+         tectonic_settings,
+         population_within_5_km) %>%
+  mutate(key = str_to_title(str_replace_all(key, "_", " ")),
+         key = paste0("<b>", key, "</b>")) %>%
+  replace_na(list(value = "Unknown")) %>%
+  nest(data = c(key, value)) %>%
+  mutate(html = map(data,
+                    knitr::kable, 
+                    format = "html",
+                    escape = FALSE,
+                    col.names = c("",""))) %>%
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lat = ~ latitude, 
+                   lng = ~ longitude,
+                   color = ~ pop_color,
+                   popup = ~ html,
+                   radius = 1) %>%
+  addMeasure()
+```
+
+```{r}
+eruptions %>%
+  ggplot(aes(2020 - start_year)) +
+  geom_histogram() +
+  scale_x_log10()
+
+```
+
+
+```{r}
+eruptions %>%
+  filter(start_year >= 1900) %>%
+  mutate(volume = .00001*10^vei) %>%
+  ggplot(aes(longitude, latitude)) +
+  borders() +
+  geom_point(aes(size = volume,
+                 color = volume)) +
+  theme_map() +
+  scale_color_gradient2(low = "blue", high = "red",
+                       midpoint = log10(.01),
+                       guide = FALSE) +
+  scale_size_continuous(range = c(.1, 6)) +
+  labs(title = "Eruptions Since 1900",
+       size = "km^3")
+```
+
+
+```{r}
+library(gganimate)
+animated_graph <- eruptions %>%
+  filter(start_year >= 1900) %>%
+  mutate(volume = .00001*10^vei) %>%
+  ggplot(aes(longitude, latitude)) +
+  borders() +
+  geom_point(aes(size = volume,
+                 color = volume)) +
+  theme_map() +
+  scale_color_gradient2(low = "blue", high = "red",
+                       midpoint = log10(.01),
+                       trans = "log10",
+                       guide = FALSE) +
+  scale_size_continuous(range = c(1, 6)) +
+  transition_time(start_year) +
+  labs(title = "Eruptions Year { round(frame_time) }",
+       size = "km^3") +
+  theme(legend.position = "none")
+
+animate(animated_graph, 150, fps = 4)
+
+anim_save("eruptions.gif")
+```
+
+
+
