@@ -120,6 +120,21 @@ big_mac %>%
 
 
 ```{r}
+big_mac %>% 
+  select(date, country, local_price, dollar_ex, usd_raw, gdp_dollar, usd_adjusted) %>%
+  filter(!is.na(gdp_dollar)) %>%
+  mutate(country = fct_reorder(country, usd_raw)) %>%
+  ggplot(aes(date, usd_adjusted)) +
+  geom_line()+
+  geom_hline(color = "red", lty=2, yintercept = 0)+
+  expand_limits(y=0) +
+  facet_wrap(~ country) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(y= "Raw Big Max Index relative to USD", x = "")
+```
+
+
+```{r}
 big_mac %>%
   group_by(date) %>%
   mutate(usd_price = local_price[iso_a3 == "USA"], 
@@ -161,9 +176,31 @@ big_mac %>%
 
 ```
 
+```{r}
+library(gganimate)
+require(transformr)
+big_mac %>%
+  filter(!is.na(gdp_dollar)) %>%
+  ggplot(aes(gdp_dollar, usd_adjusted)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  #geom_text(aes(label=country), vjust = 1, hjust=1)
+  geom_text_repel(aes(label=country)) +
+  transition_manual(date) + # transition_manual
+  labs(y= "Adjusted Big Max Index relative to USD", x = "GDP per capita (dollars)",
+       title = "{ current_frame }") # title = "{ frame_time }"
+
+```
+
+
 
 ```{r}
-
+big_mac %>%
+  filter(date == max(date)) %>%
+  mutate(country=fct_reorder(country, usd_adjusted)) %>%
+  ggplot(aes(usd_adjusted, country)) +
+  geom_col() +
+  labs(x="Big Mac Index (GDP-adjusted", y = "")
 ```
 
 
